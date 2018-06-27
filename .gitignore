@@ -1,0 +1,8 @@
+# ignore python compiled objects
+*.pyc
+
+# ignore the download folder
+downloaded/*
+
+# ignore credential file
+login.json
