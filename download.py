@@ -20,14 +20,14 @@ def get_valid_name(name):
 
     return ''.join(new_name)
 
-def get_beatmap_url(beatmap_id):
-    return 'https://osu.ppy.sh/beatmapsets/{}/download'.format(beatmap_id)
+def get_beatmapset_url(beatmapset_id):
+    return 'https://osu.ppy.sh/beatmapsets/{}/download'.format(beatmapset_id)
 
 def main():
-    parser = argparse.ArgumentParser(description='Download multiple beatmaps at once')
+    parser = argparse.ArgumentParser(description='Download multiple beatmap sets at once')
     parser.add_argument(
             'login_creds', type=str, help='File containing login credentials in json format')
-    parser.add_argument('beatmap_ids', type=str, help='File of newline seperated beatmap ids')
+    parser.add_argument('beatmapset_ids', type=str, help='File of newline seperated beatmap set ids')
     args = parser.parse_args()
 
     osu_url = 'https://osu.ppy.sh'
@@ -39,25 +39,25 @@ def main():
     session = requests.Session()
     session.post(osu_url + '/session', loginInfo)
 
-    # Load beatmaps ids
-    beatmap_ids = []
-    with open(args.beatmap_ids) as beatmaps_file:
-        beatmap_ids = beatmaps_file.read().split('\n')[:-1]
+    # Load beatmapsets ids
+    beatmapset_ids = []
+    with open(args.beatmapset_ids) as beatmapsets_file:
+        beatmapset_ids = beatmapsets_file.read().split('\n')[:-1]
 
     if not os.path.exists(dl_path):
         os.mkdir(dl_path)
 
-    # Download each beatmap
-    for beatmap_id in beatmap_ids:
-        r = session.get(get_beatmap_url(beatmap_id))
+    # Download each beatmapset
+    for beatmapset_id in beatmapset_ids:
+        r = session.get(get_beatmapset_url(beatmapset_id))
 
-        print('{}/{}'.format(beatmap_ids.index(beatmap_id) + 1, len(beatmap_ids)))
+        print('{}/{}'.format(beatmapset_ids.index(beatmapset_id) + 1, len(beatmapset_ids)))
 
         try:
             bm_name = r.headers['Content-Disposition'][22:-2]
             bm_path = os.path.join(dl_path, bm_name)
         except KeyError as error:
-            print('Error: Beatmap {} not found'.format(beatmap_id))
+            print('Error: Beatmap set {} not found'.format(beatmapset_id))
             continue
 
         if not is_valid_name(bm_name):
