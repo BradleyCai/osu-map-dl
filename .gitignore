@@ -6,3 +6,6 @@ downloaded/*
 
 # ignore credential file
 login.json
+
+# ignore beatmap list files
+*.list
