@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 import requests, argparse, os, sys, json
 
+def get_beatmapset_id(osu_url, api_key, beatmap_id):
+    payload = {'k': api_key, 'b': beatmap_id}
+    r_json = requests.post(osu_url + '/api/get_beatmaps', data=payload).json()
+    if r_json == []:
+        return None
+
+    return r_json[0]['beatmapset_id']
+
 def is_valid_name(name):
     invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
 
@@ -26,8 +34,12 @@ def get_beatmapset_url(beatmapset_id):
 def main():
     parser = argparse.ArgumentParser(description='Download multiple beatmap sets at once')
     parser.add_argument(
-            'login_creds', type=str, help='File containing login credentials in json format')
-    parser.add_argument('beatmapset_ids', type=str, help='File of newline seperated beatmap set ids')
+        'login_creds', type=str, help='File containing login credentials in json format')
+    parser.add_argument(
+        'beatmapset_ids', type=str, help='File of newline seperated beatmap set ids')
+    parser.add_argument(
+        '-b', '--use_beatmap_ids', action='store_true',
+        help='Use beatmap ids instead of beatmap set ids')
     args = parser.parse_args()
 
     osu_url = 'https://osu.ppy.sh'
@@ -35,14 +47,23 @@ def main():
 
     # Start osu session
     with open(args.login_creds) as loginfile:
-        loginInfo = json.load(loginfile)
+        login_info = json.load(loginfile)
     session = requests.Session()
-    session.post(osu_url + '/session', loginInfo)
+    session.post(osu_url + '/session', login_info)
 
     # Load beatmapsets ids
-    beatmapset_ids = []
+    file_lines = []
     with open(args.beatmapset_ids) as beatmapsets_file:
-        beatmapset_ids = beatmapsets_file.read().split('\n')[:-1]
+        file_lines = beatmapsets_file.read().split('\n')[:-1]
+
+    beatmapset_ids = []
+    if args.use_beatmap_ids:
+        for line in file_lines:
+            id = get_beatmapset_id(osu_url, login_info['api_key'], line)
+            if id != None:
+                beatmapset_ids.append(id)
+    else:
+        beatmapset_ids = file_lines
 
     if not os.path.exists(dl_path):
         os.mkdir(dl_path)
@@ -51,11 +72,11 @@ def main():
     for beatmapset_id in beatmapset_ids:
         r = session.get(get_beatmapset_url(beatmapset_id))
 
-        print('{}/{}'.format(beatmapset_ids.index(beatmapset_id) + 1, len(beatmapset_ids)))
-
         try:
             bm_name = r.headers['Content-Disposition'][22:-2]
             bm_path = os.path.join(dl_path, bm_name)
+            print('{}/{} {}'.format(
+                beatmapset_ids.index(beatmapset_id) + 1, len(beatmapset_ids), bm_name))
         except KeyError as error:
             print('Error: Beatmap set {} not found'.format(beatmapset_id))
             continue
