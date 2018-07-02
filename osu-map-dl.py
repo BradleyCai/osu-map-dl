@@ -57,12 +57,12 @@ def main():
     parser.add_argument(
         'login_creds', type=str, help='File containing login credentials in json format')
     parser.add_argument(
-        'beatmapset_ids', type=str, help='File of newline seperated beatmap set urls')
+        'maps_filename', type=str, help='Filename of the list of beatmap set urls to download')
     parser.add_argument(
         '-r', '--use_raw_ids', action='store_true',
         help='Use a file of beatmap set id numbers instead of links')
     args = parser.parse_args()
-    dl_path = './downloaded'
+    dl_path = os.path.splitext(args.maps_filename)[0]
 
     # Start osu session
     osu_url = 'https://osu.ppy.sh'
@@ -74,7 +74,7 @@ def main():
 
     # Load beatmapsets ids
     beatmapset_ids = []
-    with open(args.beatmapset_ids) as beatmapsets_file:
+    with open(args.maps_filename) as beatmapsets_file:
         for line in beatmapsets_file:
             if args.use_raw_ids:
                 beatmapset_id = line
