@@ -54,15 +54,13 @@ def get_beatmapset_url(beatmapset_id):
 def main():
     # Set up cli
     parser = argparse.ArgumentParser(description='Download multiple beatmap sets at once')
-    parser.add_argument(
-        'login_creds', type=str, help='File containing login credentials in json format')
-    parser.add_argument(
-        'maps_filename', type=str, help='Filename of the list of beatmap set urls to download')
-    parser.add_argument(
-        '-r', '--use_raw_ids', action='store_true',
+    parser.add_argument('--login_creds', type=str, nargs='?', default='login.json',
+        help='File containing login credentials in json format. Defaults to \'login.json\'')
+    parser.add_argument('maps_filename', type=str,
+        help='Filename of the list of beatmap set urls to download')
+    parser.add_argument('-r', '--use_raw_ids', action='store_true',
         help='Use a file of beatmap set id numbers instead of links')
     args = parser.parse_args()
-    dl_path = os.path.splitext(args.maps_filename)[0]
 
     # Start osu session
     osu_url = 'https://osu.ppy.sh'
@@ -83,7 +81,11 @@ def main():
 
             if beatmapset_id != None:
                 beatmapset_ids.append(beatmapset_id)
+            else:
+                print(('Warning: The map url "{}" was '
+                    'not recognized as a valid map link').format(line[:-1]))
 
+    dl_path = os.path.splitext(args.maps_filename)[0]
     if not os.path.exists(dl_path):
         os.mkdir(dl_path)
 
@@ -102,7 +104,7 @@ def main():
 
             print('{} {}'.format(curr_str, bm_name))
         except KeyError as error:
-            print('Error: Beatmap set "({}) {}" not found'.format(curr_str, beatmapset_id))
+            print('Error: Beatmap set "{} {}" not found'.format(curr_str, beatmapset_id))
 
 if __name__ == '__main__':
     main()
