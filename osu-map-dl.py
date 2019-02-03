@@ -91,9 +91,11 @@ def main():
 
     # Download each beatmapset
     for i, beatmapset_id in enumerate(beatmapset_ids):
-        r = session.get(get_beatmapset_url(beatmapset_id))
-        curr_str = '({}/{})'.format(i + 1, len(beatmapset_ids))
+        map_progress_str = '{}/{}'.format(i + 1, len(beatmapset_ids))
+        str_pad = '    '
+        print('Downloading map ' + map_progress_str)
 
+        r = session.get(get_beatmapset_url(beatmapset_id))
         try:
             bm_name = r.headers['Content-Disposition'][22:-2]
             bm_name = bm_name if is_valid_name(bm_name) else get_valid_name(bm_name)
@@ -101,10 +103,9 @@ def main():
 
             with open(bm_path, 'wb') as response:
                 response.write(r.content)
-
-            print('{} {}'.format(curr_str, bm_name))
+            print(str_pad + '{} downloaded'.format(bm_name))
         except KeyError as error:
-            print('Error: Beatmap set "{} {}" not found'.format(curr_str, beatmapset_id))
+            print(str_pad + 'Error: Beatmap set was not found'.format(curr_str, beatmapset_id))
 
 if __name__ == '__main__':
     main()
