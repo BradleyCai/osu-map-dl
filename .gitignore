@@ -9,3 +9,8 @@ login.json
 
 # ignore beatmap list files
 *.list
+*.txt
+
+# ignore archive files
+*.zip
+
