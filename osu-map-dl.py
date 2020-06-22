@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-import requests, argparse, os, sys, json, re, time
+import requests, urllib, argparse, os, sys, json, re, time
 
 def get_beatmapset_id(api_key, beatmap_id):
     osu_url = 'https://osu.ppy.sh'
     payload = {'k': api_key, 'b': beatmap_id}
 
-    r_json = requests.post(osu_url + '/api/get_beatmaps', data=payload).json()
+    request = requests.post(osu_url + '/api/get_beatmaps', data=payload)
+    request.raise_for_status()
+
+    r_json = request.json()
     if r_json == []:
         return None
-
-    return r_json[0]['beatmapset_id']
+    else:
+        return r_json[0]['beatmapset_id']
 
 def is_valid_name(name):
     invalid_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
@@ -49,26 +52,43 @@ def parse_map_url(url, api_key):
     return None
 
 def get_beatmapset_url(beatmapset_id):
-    return 'https://osu.ppy.sh/beatmapsets/{}/download'.format(beatmapset_id)
+    return 'https://osu.ppy.sh/beatmapsets/{}'.format(beatmapset_id)
 
 def main():
     # Set up cli
     parser = argparse.ArgumentParser(description='Download multiple beatmap sets at once')
     parser.add_argument('--login_creds', type=str, nargs='?', default='login.json',
         help='File containing login credentials in json format. Defaults to \'login.json\'')
+    parser.add_argument('--api_key', type=str, nargs='?', default='api_key.json',
+        help='File containing api key in json format. Defaults to \'api_key.json\'')
     parser.add_argument('maps_filename', type=str,
         help='Filename of the list of beatmap set urls to download')
     parser.add_argument('-r', '--use_raw_ids', action='store_true',
         help='Use a file of beatmap set id numbers instead of links')
+    parser.add_argument('--download_timeout', type=float, nargs='?', default=0.5,
+        help='The timeout inbetween downloading beatmapsets in seconds. Default is 0.5 second')
     args = parser.parse_args()
 
-    # Start osu session
     osu_url = 'https://osu.ppy.sh'
-
+    with open(args.api_key) as api_key_file:
+        api_key = json.load(api_key_file)
     with open(args.login_creds) as loginfile:
         login_info = json.load(loginfile)
+
+    # initiate session
     session = requests.Session()
-    session.post(osu_url + '/session', login_info)
+    session.get(osu_url + '/home')
+
+    # set special request header information and login
+    login_info['_token'] = session.cookies.get('XSRF-TOKEN')
+    home_req = requests.Request('POST', osu_url + '/session', data=urllib.parse.urlencode(login_info).replace('%2B', '+'))
+    prepped = session.prepare_request(home_req)
+    prepped.headers['Host'] = 'osu.ppy.sh'
+    prepped.headers['Origin'] = osu_url
+    prepped.headers['Referer'] = osu_url + '/home'
+    prepped.headers['X-CSRF-Token'] = login_info['_token']
+    prepped.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    session.send(prepped)
 
     # Load beatmapsets ids
     beatmapset_ids = []
@@ -77,7 +97,7 @@ def main():
             if args.use_raw_ids:
                 beatmapset_id = line
             else:
-                beatmapset_id = parse_map_url(line, login_info['api_key'])
+                beatmapset_id = parse_map_url(line, api_key['api_key'])
 
             if beatmapset_id != None:
                 beatmapset_ids.append(beatmapset_id)
@@ -95,17 +115,21 @@ def main():
         str_pad = '    '
         print('Downloading map ' + map_progress_str)
 
-        r = session.get(get_beatmapset_url(beatmapset_id))
+        beatmapset_url = get_beatmapset_url(beatmapset_id)
+        session.headers.update({'referer': beatmapset_url})
+        r = session.get(beatmapset_url + '/download')
         try:
             bm_name = r.headers['Content-Disposition'][22:-2]
             bm_name = bm_name if is_valid_name(bm_name) else get_valid_name(bm_name)
             bm_path = os.path.join(dl_path, bm_name)
 
-            with open(bm_path, 'wb') as response:
-                response.write(r.content)
-            print(str_pad + '{} downloaded'.format(bm_name))
+            with open(bm_path, 'wb') as bm_file:
+                bm_file.write(r.content)
+            print(str_pad + 'Map {} downloaded to {}'.format(i + 1, bm_path))
         except KeyError as error:
-            print(str_pad + 'Error: Beatmap set was not found'.format(curr_str, beatmapset_id))
+            print(str_pad + 'Error: Beatmap set {} was not found'.format(beatmapset_id))
+
+        time.sleep(args.download_timeout)
 
 if __name__ == '__main__':
     main()
